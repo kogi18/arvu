@@ -40,9 +40,9 @@ using namespace cv;
 ROSImageStreamThread::ROSImageStreamThread()
 {
 	// subscribe
-	vid_channel = nh_.resolveName("image");
-	vid_sub          = nh_.subscribe(vid_channel,1, &ROSImageStreamThread::vidCb, this);
 
+	vid_channel = nh_.resolveName("image");
+	vid_sub          = nh_.subscribe("/image_raw",1, &ROSImageStreamThread::vidCb, this);
 
 	// wait for cam calib
 	width_ = height_ = 0;
@@ -139,7 +139,6 @@ void ROSImageStreamThread::vidCb(const sensor_msgs::ImageConstPtr img)
 	{
 		bufferItem.data = cv_ptr->image;
 	}
-
 	imageBuffer->pushBack(bufferItem);
 }
 

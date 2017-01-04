@@ -34,7 +34,7 @@ void ARViewer::setImage(const cv::Mat& image){
 	cv::flip(image,buffer,0);
 	cv::cvtColor(buffer, current_img, CV_GRAY2RGB);
 	buffer.release();
-	DEBUG(current_img.type());
+//	DEBUG(current_img.type());
 }
 
 void ARViewer::addPoseMsg(geometry_msgs::PoseStampedConstPtr msg){
