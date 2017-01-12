@@ -44,9 +44,15 @@ void ARViewer::addPoseMsg(geometry_msgs::PoseStampedConstPtr msg){
 //	std::cout << 'R'  << ' ' << msg->pose.orientation.x << ',' << msg->pose.orientation.y << ',' << msg->pose.orientation.z << ',' << msg->pose.orientation.w << std::endl;
 //	std::cout << 'P'  << ' ' << msg->pose.position.x << ',' << msg->pose.position.y << ',' << msg->pose.position.z << std::endl;
 
-	//TODO
-	qglviewer::Vec pose = qglviewer::Vec(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
-	qglviewer::Quaternion orientation = qglviewer::Quaternion(msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, msg->pose.orientation.w);
+	// we have to negate them - pose just - pose, but for correct orentation negation, we have to inverse the matrix
+	// it also appears that the given X is positive to the left, so double negate on x
+	qglviewer::Vec pose = qglviewer::Vec(10*msg->pose.position.x, -10*msg->pose.position.y, -10*msg->pose.position.z);
+	qglviewer::Quaternion orientation = qglviewer::Quaternion(msg->pose.orientation.x, -msg->pose.orientation.y, -msg->pose.orientation.z, msg->pose.orientation.w);
+
+	// we have to invert the matrix
+	//double mx_data[16];
+	//orientation.getMatrix(mx_data);
+	//camera()->setFromModelViewMatrix(mx_data);
 
 	camera()->setPosition(pose);
 	camera()->setOrientation(orientation);
@@ -55,6 +61,14 @@ void ARViewer::addPoseMsg(geometry_msgs::PoseStampedConstPtr msg){
 void ARViewer::addFrameMsg(ar_viewer::keyframeMsgConstPtr msg){
 // camToWorld seems to be [~Rx,~Ry,~Rz,~Rw,Tx,Ty], the rotations are the approximations from the image?
 //	std::cout << 'F'  << ' ' << msg->camToWorld[0] << ',' << msg->camToWorld[1] << ',' << msg->camToWorld[2] << ',' << msg->camToWorld[3] << ',' << msg->camToWorld[4] << ',' << msg->camToWorld[5] << std::endl;
+	//msg.poitncloud ... if size > 0 .... idepth 
+	//cv::inpaint ...
+
+	// just 1 week left, so make a fun animation to see it from more angles - like a flying darth vader to see it from different angles
+	// go from keypoints to the mesh painted with inpaint to see where it is deep ... sthg similar to  KeyFrameDisplay::refreshPC()
+	// make it a smaller resolution/scale
+	// if time ... collision detection should be added
+	// MAIN POINT => MAKE IT FUN
 }
 
 void ARViewer::drawCube(){
