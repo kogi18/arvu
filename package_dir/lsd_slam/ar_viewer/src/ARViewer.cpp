@@ -12,16 +12,66 @@ ARViewer::ARViewer(){
 	 * Exercise 1.2: initialize a color image as the background image (current_img)
 	 */
 	//TODO
+	//complexObjFile = "/home/rok/rosbuild_ws/package_dir/lsd_slam/ar_viewer/assets/nukahedron.obj";
+	//complexObjFile = "/home/rok/rosbuild_ws/package_dir/lsd_slam/ar_viewer/assets/vader.obj";
+	//complexTexFile = "/home/rok/rosbuild_ws/package_dir/lsd_slam/ar_viewer/assets/vader.png";
+
+	complexObjFile = "/home/rok/rosbuild_ws/package_dir/lsd_slam/ar_viewer/assets/Millennium_Falcon.obj";
+	complexTexFile = "/home/rok/rosbuild_ws/package_dir/lsd_slam/ar_viewer/assets/Millennium_Falcon.png";
+	
+	// complex object animation settings
+	/*	PATH
+		   0     0
+	#	  /	\   / \
+	|	 /   \ /   \
+	z	0     \     0
+	|	 \   / \   /
+	#	  \ /   \ /
+		   0     0
+	       <--x-->
+	*/
+	int distanceFactor = 3;
+	float distanceZ = 6.0f;
+	float distanceY = 8.0f;
+	float distanceX = distanceZ * sqrt(distanceFactor*distanceFactor - 1); // diagonal is distanceZ * distanceFactor
+
+	circlingMax = 20;
+	straightMovementMax = distanceFactor*circlingMax;
+	currentFrame = 0;
+
+	circlingRotStepDeg = 180.0f / circlingMax;
+	circlingRadius = distanceZ / 2;
+	circlingBufferX = distanceX / 2;
+	straightSpeedX = distanceX / straightMovementMax;
+	straightSpeedZ = distanceZ / straightMovementMax;
+	droppingSpeedY = - distanceY / circlingMax;
+
+	CUBE_x = 0.0f;
+	CUBE_y = 0.0f;
+	CUBE_z = -9.0f;
+
+	CO_x = -distanceX / 2;
+	CO_y = 4.0f;
+	CO_z = -distanceZ / 2;
+	CO_Deg_y = -90.0f;
+
+	isCirgling = 1; // 1 = true
+	isFirstHalf = 1;
+
 	emptyCurrentImg();
+	initComplexModel();
 }
 
 ARViewer::~ARViewer() {
-
+	current_img.release();
+	//delete[] vertexList;
+	//delete[] normalList;
+	//delete[] textureList;
 }
 
 void ARViewer::emptyCurrentImg(){
 	// set to be green
-	current_img = cv::Mat(480,640,CV_8UC3 ,cv::Scalar(0,127,0));
+	current_img = cv::Mat(480,640, CV_8UC3,cv::Scalar(0,127,0));
 }
 
 void ARViewer::setImage(const cv::Mat& image){
@@ -34,7 +84,6 @@ void ARViewer::setImage(const cv::Mat& image){
 	cv::flip(image,buffer,0);
 	cv::cvtColor(buffer, current_img, CV_GRAY2RGB);
 	buffer.release();
-//	DEBUG(current_img.type());
 }
 
 void ARViewer::addPoseMsg(geometry_msgs::PoseStampedConstPtr msg){
@@ -49,13 +98,9 @@ void ARViewer::addPoseMsg(geometry_msgs::PoseStampedConstPtr msg){
 	qglviewer::Vec pose = qglviewer::Vec(10*msg->pose.position.x, -10*msg->pose.position.y, -10*msg->pose.position.z);
 	qglviewer::Quaternion orientation = qglviewer::Quaternion(msg->pose.orientation.x, -msg->pose.orientation.y, -msg->pose.orientation.z, msg->pose.orientation.w);
 
-	// we have to invert the matrix
-	//double mx_data[16];
-	//orientation.getMatrix(mx_data);
-	//camera()->setFromModelViewMatrix(mx_data);
-
 	camera()->setPosition(pose);
 	camera()->setOrientation(orientation);
+
 }
 
 void ARViewer::addFrameMsg(ar_viewer::keyframeMsgConstPtr msg){
@@ -76,13 +121,16 @@ void ARViewer::drawCube(){
 	  // Top face (y = 1.0f)
 	  // Define vertices in counter-clockwise (CCW) order with normal pointing out
 	  glColor3f(0.0f, 1.0f, 0.0f);     // Green
+
 	  glVertex3f( 1.0f, 1.0f, -1.0f);
 	  glVertex3f(-1.0f, 1.0f, -1.0f);
 	  glVertex3f(-1.0f, 1.0f,  1.0f);
 	  glVertex3f( 1.0f, 1.0f,  1.0f);
+	  glNormal3f(0.0, 1.0, 0.0); 
 
 	  // Bottom face (y = -1.0f)
 	  glColor3f(1.0f, 0.5f, 0.0f);     // Orange
+	  glNormal3f(0.0, -1.0, 0.0); 
 	  glVertex3f( 1.0f, -1.0f,  1.0f);
 	  glVertex3f(-1.0f, -1.0f,  1.0f);
 	  glVertex3f(-1.0f, -1.0f, -1.0f);
@@ -90,6 +138,7 @@ void ARViewer::drawCube(){
 
 	  // Front face  (z = 1.0f)
 	  glColor3f(1.0f, 0.0f, 0.0f);     // Red
+	  glNormal3f(0.0, 0.0, 1.0); 
 	  glVertex3f( 1.0f,  1.0f, 1.0f);
 	  glVertex3f(-1.0f,  1.0f, 1.0f);
 	  glVertex3f(-1.0f, -1.0f, 1.0f);
@@ -97,6 +146,7 @@ void ARViewer::drawCube(){
 
 	  // Back face (z = -1.0f)
 	  glColor3f(1.0f, 1.0f, 0.0f);     // Yellow
+	  glNormal3f(0.0, 0.0, -1.0); 
 	  glVertex3f( 1.0f, -1.0f, -1.0f);
 	  glVertex3f(-1.0f, -1.0f, -1.0f);
 	  glVertex3f(-1.0f,  1.0f, -1.0f);
@@ -104,6 +154,7 @@ void ARViewer::drawCube(){
 
 	  // Left face (x = -1.0f)
 	  glColor3f(0.0f, 0.0f, 1.0f);     // Blue
+	  glNormal3f(-1.0, 0.0, 0.0); 
 	  glVertex3f(-1.0f,  1.0f,  1.0f);
 	  glVertex3f(-1.0f,  1.0f, -1.0f);
 	  glVertex3f(-1.0f, -1.0f, -1.0f);
@@ -111,6 +162,7 @@ void ARViewer::drawCube(){
 
 	  // Right face (x = 1.0f)
 	  glColor3f(1.0f, 0.0f, 1.0f);     // Magenta
+	  glNormal3f(1.0, 0.0, 0.0); 
 	  glVertex3f(1.0f,  1.0f, -1.0f);
 	  glVertex3f(1.0f,  1.0f,  1.0f);
 	  glVertex3f(1.0f, -1.0f,  1.0f);
@@ -121,6 +173,7 @@ void ARViewer::drawCube(){
 
 void ARViewer::drawComplex(){
 	// seperation for faster Exercise 1.3 implementation
+	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, objectTextureId);
 
 	glBegin(GL_TRIANGLES);
@@ -135,44 +188,114 @@ void ARViewer::drawComplex(){
 	glEnd();
 
 	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
+
 }
 
 void ARViewer::draw(){
 
-	glPushMatrix ();
+	glPushMatrix();
 	renderBackgroundGL();
-	glPopMatrix ();
-	
-	glTranslatef(1.5f, 0.0f, -7.0f);  // Move right and into the screen
-	
-	drawCube();
+	glPopMatrix();
+
 	/*
 	 * Exercise 1.3 - Replace the box with one or more complex 3D objects
 	 */
-	//TODOs
-	glTranslatef(-5.0f, 0.0f, -10.0f);
+
+	glTranslatef(CUBE_x, CUBE_y, CUBE_z);
+	drawCube();
+
+	// Animation calculation - 8-circling flight
+	currentFrame++;
+	if(isCirgling == 1){
+		// half circle movement
+		if(isFirstHalf == 1){
+			// forward direction
+			CO_Deg_y += circlingRotStepDeg;
+			CO_x = -circlingBufferX -circlingRadius * sin((CO_Deg_y + 90.0f)*deg2rad);
+			CO_y += droppingSpeedY;
+			CO_z = -circlingRadius * cos((CO_Deg_y + 90.0f)*deg2rad); 
+			DEBUG(circlingRadius * sin((CO_Deg_y + 90.0f)*deg2rad));
+		}
+		else{
+			//returning direction
+			CO_Deg_y -= circlingRotStepDeg;
+			CO_x = circlingBufferX - circlingRadius * sin((CO_Deg_y - 90.0f)*deg2rad);
+			CO_y -= droppingSpeedY;
+			CO_z = -circlingRadius * cos((CO_Deg_y - 90.0f)*deg2rad); 
+			DEBUG(circlingRadius * sin((CO_Deg_y - 90.0f)*deg2rad));
+		}
+
+		//CO_z += //circlingRadius * 2.0f / circlingMax;
+
+		if(currentFrame >= circlingMax){
+			currentFrame = 0;
+			isCirgling = 0;
+			if(isFirstHalf == 1){
+				CO_Deg_y = 90.f;
+			}
+			else{
+				CO_Deg_y = -90.f;				
+			}
+		}
+	}
+	else{
+		// diagonal movement
+		if(isFirstHalf == 1){
+			// forward direction
+			CO_x += straightSpeedX;
+			CO_y += 0.0f;
+		}
+		else{
+			//returning direction
+			CO_x -= straightSpeedX;
+			CO_y += 0.0f;
+		}
+
+		CO_z -= straightSpeedZ;
+
+		if(currentFrame >= straightMovementMax){
+			currentFrame = 0;
+			isCirgling = 1;
+			isFirstHalf = 1 - isFirstHalf;
+		}
+	}
+
+	//CO_z = -9.0f;
+
+	std::cout << "X: " << CO_x + CUBE_x << " Y: " << CO_y + CUBE_y << " Z: " << CO_z + CUBE_z<< std::endl;
+	glTranslatef(CO_x , CO_y, CO_z);
+	glRotatef(CO_Deg_y, 0.0f, 1.0f, 0.0f); // rotation around Y
 	drawComplex();
 
 }
 
 void ARViewer::init(){
 
-	glEnable(GL_TEXTURE_2D);
 	glGenTextures(1, &textureId);
 	glBindTexture(GL_TEXTURE_2D, textureId);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 
 	glGenTextures(1, &objectTextureId);
 	glBindTexture(GL_TEXTURE_2D, objectTextureId);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 
-	initComplexModel();
+	// adding textures for the complex model
+	cv::Mat texImage = cv::imread(complexTexFile, CV_LOAD_IMAGE_UNCHANGED);   // Read the file
+	glBindTexture(GL_TEXTURE_2D, objectTextureId);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texImage.cols, texImage.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, texImage.data);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	texImage.release();
+
+	glBindTexture(GL_TEXTURE_2D, 0);
 
 	setAnimationPeriod(1000/30);
 	startAnimation();
@@ -185,10 +308,6 @@ void ARViewer::init(){
 
 void ARViewer::initComplexModel(){
 	//code rearranged from my (Rok's) previous project
-
-//	const char* complexObjFile = "/home/rok/rosbuild_ws/package_dir/lsd_slam/ar_viewer/assets/nukahedron.obj";
-	const char* complexObjFile = "/home/rok/rosbuild_ws/package_dir/lsd_slam/ar_viewer/assets/vader.obj";
-	const char* complexTexFile = "/home/rok/rosbuild_ws/package_dir/lsd_slam/ar_viewer/assets/vader.png";
 
 	int maxV = 0,
 		maxUV = 0,
@@ -343,7 +462,7 @@ void ARViewer::initComplexModel(){
 	}
 
 	// free memory in arrays
-/*	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 3; i++) {
 		if (i < 2) {
 			delete[] OBJ_TEXUV[i];
 		}
@@ -359,12 +478,6 @@ void ARViewer::initComplexModel(){
 	delete[] OBJ_TRIANGLE_VI;
 	delete[] OBJ_TRIANGLE_NI;
 	delete[] OBJ_TRIANGLE_TI;
-*/
-	// TO DO
-	// adding textures to the mode
-	cv::Mat texImage = cv::imread(complexTexFile, CV_LOAD_IMAGE_UNCHANGED);   // Read the file
-	glBindTexture(GL_TEXTURE_2D, objectTextureId);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, texImage.cols, texImage.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, texImage.data);
 }
 
 void ARViewer::renderBackgroundGL()
@@ -375,12 +488,12 @@ void ARViewer::renderBackgroundGL()
 	 *                2) capturing frames as background
 	 */
 	//TODO
-	glBindTexture(GL_TEXTURE_2D, textureId);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, current_img.cols, current_img.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, current_img.data);
-
   	glMatrixMode(GL_MODELVIEW);
   	glLoadIdentity();
-  	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, textureId);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, current_img.cols, current_img.rows, 0, GL_RGB, GL_UNSIGNED_BYTE, current_img.data);
 
 	glBegin(GL_QUADS);
 	glColor3f(1.0f, 1.0f, 1.0f);     // White
@@ -388,19 +501,24 @@ void ARViewer::renderBackgroundGL()
    // a quad same size as screen which has normals facing the camera
    // the selected texture is either the loaded frame image or initialized color
    	glTexCoord2f(1.0, 1.0);
+   	glNormal3f(0.0, 0.0, 1.0); 
 	glVertex3f(110.0f,  75.0f, -99.0f);
 
   	glTexCoord2f(0.0, 1.0);
+   	glNormal3f(0.0, 0.0, 1.0); 
 	glVertex3f(-110.0f,  75.0f, -99.0f);
 	
    	glTexCoord2f(0.0, 0.0);
+   	glNormal3f(0.0, 0.0, 1.0); 
 	glVertex3f(-110.0f, -75.0f, -99.0f);
 	
    	glTexCoord2f(1.0, 0.0);
+   	glNormal3f(0.0, 0.0, 1.0); 
 	glVertex3f(110.0f, -75.0f, -99.0f);
 	glEnd();
 
 	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
 
 	// after loading we reset the currentimage to capture missing frames
 	emptyCurrentImg();

@@ -18,8 +18,7 @@
 #include "iostream" //complex object textures require strings
 #include <fstream>
 #include <opencv2/highgui/highgui.hpp>
-//#include <cstring>
-
+#include <math.h>
 
 class ARViewer: public QGLViewer {
 public:
@@ -39,10 +38,22 @@ private:
 	void renderBackgroundGL();
 	GLuint textureId;
 	GLuint objectTextureId;
+	const char* complexObjFile;
+	const char* complexTexFile;
 	float *vertexList = NULL, *normalList = NULL, *textureList = NULL;
 	int totalVertexCount = 0;
 	boost::mutex dataMutex; //protects current_img
 	cv::Mat current_img;
+	// animation settings
+	int circlingMax, straightMovementMax, currentFrame; // time/frame triggers and time/frame coutner
+	float circlingRotStepDeg, circlingRotStepRad, straightSpeedX, straightSpeedZ, droppingSpeedY;
+	float circlingBufferX, circlingRadius;
+	int isCirgling, isFirstHalf; // 'booleans'
+	float CO_x, CO_y, CO_z; //complex object positions
+	float CO_Deg_y; //complex object rotations
+	float CUBE_x, CUBE_y, CUBE_z; //cube object positions
+	float PI = 3.1415926535897;
+	float deg2rad = PI / 180;
 };
 
 #endif /* ARVIEWER_H_ */
