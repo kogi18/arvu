@@ -185,9 +185,11 @@ void KeyFrameDisplay::refreshPC()
 					continue;
 			}
 
-			tmpBuffer[vertexBufferNumPoints].point[0] = (x*fxi + cxi) * depth;
-			tmpBuffer[vertexBufferNumPoints].point[1] = (y*fyi + cyi) * depth;
-			tmpBuffer[vertexBufferNumPoints].point[2] = depth;
+			tmpBuffer[vertexBufferNumPoints].point[0] = (x*fxi + cxi) * depth; //1.0f / float(width/2 - x);
+			tmpBuffer[vertexBufferNumPoints].point[1] = -(y*fyi + cyi) * depth; // 1.0f / float(height/2 - y);
+			tmpBuffer[vertexBufferNumPoints].point[2] = -depth;
+
+			//std::cout << int(originalInput[x+y*width].color[0]) << ',' << int(originalInput[x+y*width].color[1]) << ',' <<  int(originalInput[x+y*width].color[2]) << std::endl;
 
 			tmpBuffer[vertexBufferNumPoints].color[3] = 100;
 			tmpBuffer[vertexBufferNumPoints].color[2] = originalInput[x+y*width].color[0];
@@ -365,10 +367,13 @@ void KeyFrameDisplay::drawPC(float pointSize, float alpha)
 	}
 
 
-	glPushMatrix();
+	//glPushMatrix();
 
-		Sophus::Matrix4f m = camToWorld.matrix();
-		glMultMatrixf((GLfloat*)m.data());
+
+	  	//glMatrixMode(GL_MODELVIEW);
+  		//glLoadIdentity();
+		//Sophus::Matrix4f m = camToWorld.matrix();
+		//glMultMatrixf((GLfloat*)m.data());
 
 		glPointSize(pointSize);
 
@@ -385,7 +390,7 @@ void KeyFrameDisplay::drawPC(float pointSize, float alpha)
 		glDisableClientState(GL_COLOR_ARRAY);
 		glDisableClientState(GL_VERTEX_ARRAY);
 
-	glPopMatrix();
+	//glPopMatrix();
 
 
 

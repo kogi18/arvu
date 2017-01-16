@@ -19,6 +19,7 @@
 #include <fstream>
 #include <opencv2/highgui/highgui.hpp>
 #include <math.h>
+#include "KeyFrameDisplay.h"
 
 class ARViewer: public QGLViewer {
 public:
@@ -54,6 +55,8 @@ private:
 	float CUBE_x, CUBE_y, CUBE_z; //cube object positions
 	float PI = 3.1415926535897;
 	float deg2rad = PI / 180;
+	// keyframes for 2.0
+	KeyFrameDisplay* kfd;
 };
 
 #endif /* ARVIEWER_H_ */

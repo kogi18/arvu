@@ -64,6 +64,7 @@ ARViewer::ARViewer(){
 
 ARViewer::~ARViewer() {
 	current_img.release();
+	delete kfd;
 	//delete[] vertexList;
 	//delete[] normalList;
 	//delete[] textureList;
@@ -87,16 +88,19 @@ void ARViewer::setImage(const cv::Mat& image){
 }
 
 void ARViewer::addPoseMsg(geometry_msgs::PoseStampedConstPtr msg){
+	boost::lock_guard<boost::mutex> guard(dataMutex); // unlocks the dataMutex at function end
+	//std::cout << "POSE TIME: " << msg->header.stamp.sec << std::endl;
 	/*
 	 * Exercise 1.1: Update camera pose and orientation
 	 */
-//	std::cout << 'R'  << ' ' << msg->pose.orientation.x << ',' << msg->pose.orientation.y << ',' << msg->pose.orientation.z << ',' << msg->pose.orientation.w << std::endl;
-//	std::cout << 'P'  << ' ' << msg->pose.position.x << ',' << msg->pose.position.y << ',' << msg->pose.position.z << std::endl;
-
-	// we have to negate them - pose just - pose, but for correct orentation negation, we have to inverse the matrix
+	// we have to negate them
 	// it also appears that the given X is positive to the left, so double negate on x
+	// for pose vector we have to also scale it from image size to OpenGL size = empirically it seems to be a scale of 10
 	qglviewer::Vec pose = qglviewer::Vec(10*msg->pose.position.x, -10*msg->pose.position.y, -10*msg->pose.position.z);
+	//qglviewer::Vec pose = qglviewer::Vec(msg->pose.position.x, -msg->pose.position.y, -msg->pose.position.z);
 	qglviewer::Quaternion orientation = qglviewer::Quaternion(msg->pose.orientation.x, -msg->pose.orientation.y, -msg->pose.orientation.z, msg->pose.orientation.w);
+
+
 
 	camera()->setPosition(pose);
 	camera()->setOrientation(orientation);
@@ -104,8 +108,20 @@ void ARViewer::addPoseMsg(geometry_msgs::PoseStampedConstPtr msg){
 }
 
 void ARViewer::addFrameMsg(ar_viewer::keyframeMsgConstPtr msg){
-// camToWorld seems to be [~Rx,~Ry,~Rz,~Rw,Tx,Ty], the rotations are the approximations from the image?
-//	std::cout << 'F'  << ' ' << msg->camToWorld[0] << ',' << msg->camToWorld[1] << ',' << msg->camToWorld[2] << ',' << msg->camToWorld[3] << ',' << msg->camToWorld[4] << ',' << msg->camToWorld[5] << std::endl;
+	boost::lock_guard<boost::mutex> guard(dataMutex); // unlocks the dataMutex at function end
+	//std::cout << "FRAME TIME: " << int(msg->time) << std::endl;
+	if(msg->isKeyframe &&  msg->pointcloud.size() > 0){
+		std::cout << "ID: " << msg->id << " pointcloud size: " << msg->pointcloud.size() << std::endl;
+		if(msg->id > kfd->id){
+			kfd->setFrom(msg);
+		}
+		else{
+			//reinitilize the kfd since we have a new input (id < than before)
+			delete kfd;
+			kfd = new KeyFrameDisplay();
+			kfd->setFrom(msg);
+		}
+	}
 	//msg.poitncloud ... if size > 0 .... idepth 
 	//cv::inpaint ...
 
@@ -198,6 +214,11 @@ void ARViewer::draw(){
 	renderBackgroundGL();
 	glPopMatrix();
 
+	kfd->refreshPC();
+	kfd->drawPC();
+	//kfd->drawCam();
+
+
 	/*
 	 * Exercise 1.3 - Replace the box with one or more complex 3D objects
 	 */
@@ -215,7 +236,7 @@ void ARViewer::draw(){
 			CO_x = -circlingBufferX -circlingRadius * sin((CO_Deg_y + 90.0f)*deg2rad);
 			CO_y += droppingSpeedY;
 			CO_z = -circlingRadius * cos((CO_Deg_y + 90.0f)*deg2rad); 
-			DEBUG(circlingRadius * sin((CO_Deg_y + 90.0f)*deg2rad));
+			//DEBUG(circlingRadius * sin((CO_Deg_y + 90.0f)*deg2rad));
 		}
 		else{
 			//returning direction
@@ -223,7 +244,7 @@ void ARViewer::draw(){
 			CO_x = circlingBufferX - circlingRadius * sin((CO_Deg_y - 90.0f)*deg2rad);
 			CO_y -= droppingSpeedY;
 			CO_z = -circlingRadius * cos((CO_Deg_y - 90.0f)*deg2rad); 
-			DEBUG(circlingRadius * sin((CO_Deg_y - 90.0f)*deg2rad));
+			//DEBUG(circlingRadius * sin((CO_Deg_y - 90.0f)*deg2rad));
 		}
 
 		//CO_z += //circlingRadius * 2.0f / circlingMax;
@@ -260,10 +281,7 @@ void ARViewer::draw(){
 			isFirstHalf = 1 - isFirstHalf;
 		}
 	}
-
-	//CO_z = -9.0f;
-
-	std::cout << "X: " << CO_x + CUBE_x << " Y: " << CO_y + CUBE_y << " Z: " << CO_z + CUBE_z<< std::endl;
+	//std::cout << "X: " << CO_x + CUBE_x << " Y: " << CO_y + CUBE_y << " Z: " << CO_z + CUBE_z<< std::endl;
 	glTranslatef(CO_x , CO_y, CO_z);
 	glRotatef(CO_Deg_y, 0.0f, 1.0f, 0.0f); // rotation around Y
 	drawComplex();
@@ -271,6 +289,8 @@ void ARViewer::draw(){
 }
 
 void ARViewer::init(){
+
+	kfd = new KeyFrameDisplay();
 
 	glGenTextures(1, &textureId);
 	glBindTexture(GL_TEXTURE_2D, textureId);
