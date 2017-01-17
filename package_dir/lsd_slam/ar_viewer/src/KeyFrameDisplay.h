@@ -71,7 +71,7 @@ public:
 
 	int totalPoints, displayedPoints;
 
-	void drawMesh(float alpha = 0.5f);
+	void drawMesh(float alpha = 1);
 
 
 	// camera pose

@@ -215,13 +215,13 @@ void ARViewer::draw(){
 	renderBackgroundGL();
 	glPopMatrix();
 
-/*
+
 	glScalef(10.0f, 10.0f, 10.0f);
-	kfd->refreshPC();
-	kfd->drawPC();
-	//kfd->drawMesh();
+//	kfd->refreshPC();
+//	kfd->drawPC();
+	kfd->drawMesh(0.75f);
 	glScalef(0.1f, 0.1f, 0.1f);
-*/
+
 	/*
 	 * Exercise 1.3 - Replace the box with one or more complex 3D objects
 	 */

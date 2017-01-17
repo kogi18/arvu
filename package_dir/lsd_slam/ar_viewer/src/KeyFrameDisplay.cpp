@@ -50,7 +50,7 @@ KeyFrameDisplay::KeyFrameDisplay()
 //	cv::namedWindow("Scaled depth map", cv::WINDOW_NORMAL);// Create a window for display.
 //	cv::resizeWindow("Scaled depth map",400, 300);
 	cv::namedWindow("Inpainted depth map", cv::WINDOW_NORMAL);// Create a window for display.
-	cv::resizeWindow("Inpainted depth map",400, 300);
+	cv::resizeWindow("Inpainted depth map",640, 480);
 	depthMapHeight = 15;
 	depthMapWidth = 20;
 }
@@ -85,15 +85,28 @@ cv::Vec3b KeyFrameDisplay::getVisualizationColor(float idepth) const{
 }
 
 float KeyFrameDisplay::color2Depth(cv::Vec3b color){
+	float idepth = 0;
 	if(color[2] > 0){
-		return 2.0f - color[2]/255.0f;
+		idepth = 2.0f - (255 - color[2])/255.0f;
 	}
 	
-	if(color[1] > 0){
-		return 1.0f - color[1]/255.0f;
+	if(idepth == 0 && color[1] > 0){
+		idepth = 1.0f - (255 - color[1])/255.0f;
 	}
 
-	return color[0]/255.0f;
+	if(idepth == 0 && color[0] > 0){
+		idepth = (255 - color[0])/255.0f;
+	}
+
+	if(idepth == 0){
+		return 0.0f;
+	}
+
+	if(idepth < 0){
+		idepth = -idepth;
+	}
+
+	return 1.0f/idepth;
 }
 
 
@@ -200,8 +213,8 @@ void KeyFrameDisplay::drawMesh(float alpha)
 	float x1, x2, y1, y2;
 
 	if(depthMapValid){
-		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		//glEnable( GL_BLEND );
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable( GL_BLEND );
 		glBegin(GL_QUADS);  
 		for(int y=0;y<depthMapHeight-1;y++){
 			for(int x=0;x<depthMapWidth-1;x++){
