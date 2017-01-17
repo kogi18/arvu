@@ -38,7 +38,7 @@ KeyFrameDisplay::KeyFrameDisplay()
 	id = 0;
 	vertexBufferIdValid = false;
 	glBuffersValid = false;
-
+	depthMapValid = false;
 
 	camToWorld = Sophus::Sim3f();
 	width=height=0;
@@ -46,6 +46,13 @@ KeyFrameDisplay::KeyFrameDisplay()
 	my_scaledTH = my_absTH = 0;
 
 	totalPoints = displayedPoints = 0;
+//	cv::namedWindow("Depth map");// Create a window for display.
+//	cv::namedWindow("Scaled depth map", cv::WINDOW_NORMAL);// Create a window for display.
+//	cv::resizeWindow("Scaled depth map",400, 300);
+	cv::namedWindow("Inpainted depth map", cv::WINDOW_NORMAL);// Create a window for display.
+	cv::resizeWindow("Inpainted depth map",400, 300);
+	depthMapHeight = 15;
+	depthMapWidth = 20;
 }
 
 
@@ -59,6 +66,34 @@ KeyFrameDisplay::~KeyFrameDisplay()
 
 	if(originalInput != 0)
 		delete[] originalInput;
+
+	depth_img.release();
+	scaled_depth_img.release();
+	inpainted_depth_img.release();
+}
+
+cv::Vec3b KeyFrameDisplay::getVisualizationColor(float idepth) const{
+	float r = (0-idepth) * 255 / 1.0; if(r < 0) r = -r;
+	float g = (1-idepth) * 255 / 1.0; if(g < 0) g = -g;
+	float b = (2-idepth) * 255 / 1.0; if(b < 0) b = -b;
+	
+	uchar rc = r < 0 ? 0 : (r > 255 ? 255 : r);
+	uchar gc = g < 0 ? 0 : (g > 255 ? 255 : g);
+	uchar bc = b < 0 ? 0 : (b > 255 ? 255 : b);
+
+	return cv::Vec3b(255-rc, 255-gc, 255-bc);
+}
+
+float KeyFrameDisplay::color2Depth(cv::Vec3b color){
+	if(color[2] > 0){
+		return 2.0f - color[2]/255.0f;
+	}
+	
+	if(color[1] > 0){
+		return 1.0f - color[1]/255.0f;
+	}
+
+	return color[0]/255.0f;
 }
 
 
@@ -100,7 +135,101 @@ void KeyFrameDisplay::setFrom(ar_viewer::keyframeMsgConstPtr msg)
 		memcpy(originalInput, msg->pointcloud.data(), width*height*sizeof(InputPointDense));
 	}
 
+	depth_img = cv::Mat::zeros(height, width, CV_8UC3);
+	scaled_depth_img = cv::Mat::zeros(depthMapHeight, depthMapWidth, CV_8UC3);
+	inpainted_depth_img = cv::Mat::zeros(depthMapHeight, depthMapWidth, CV_8UC3);
+	cv::Mat scaled_border_depth_img = cv::Mat::zeros(depthMapHeight+1, depthMapWidth+1, CV_8UC3);
+	cv::Mat inpainted_border_depth_img = cv::Mat::zeros(depthMapHeight+1, depthMapWidth+1, CV_8UC3);
+
+	float idepth;
+	// set the colors
+	for(int y=0;y<height;y++){
+		for(int x=0;x<width;x++){
+			idepth = originalInput[x+y*width].idepth;
+			cv::Vec3b color = getVisualizationColor(idepth);
+			depth_img.at<cv::Vec3b>(y, x) = color;
+		}
+	}
+	// scale down the depth map
+	cv::resize(depth_img,scaled_border_depth_img,cv::Size(scaled_border_depth_img.cols, scaled_border_depth_img.rows), cv::INTER_CUBIC); //linear has big losses in shrinking
+	cv::Mat depth_mask_img = cv::Mat::zeros(scaled_border_depth_img.rows, scaled_border_depth_img.cols,CV_8UC1);
+	// generate the mask for inpaint
+	int treshold = 25;
+	for(int y=0;y<scaled_border_depth_img.rows;y++){
+		for(int x=0;x<scaled_border_depth_img.cols;x++){
+			cv::Vec3b color = scaled_border_depth_img.at<cv::Vec3b>(y, x);
+			if(color[0] < treshold && color[1] < treshold && color[2] < treshold){
+//			if(color[0] == 0 && color[1] == 0 && color[2] == 0){
+				depth_mask_img.at<uchar>(y, x) = 255;
+			}
+		}
+	}
+	// do the inpaint
+	inpaint(scaled_border_depth_img, depth_mask_img, inpainted_border_depth_img, 2, cv::INPAINT_TELEA);
+
+	//remove the border - inpainting fails at left and upper border, so we do it on 1px higher and wider image than remove the first row and column
+	int blackCount = 0;
+	for(int y=0;y<scaled_depth_img.rows;y++){
+		for(int x=0;x<scaled_depth_img.cols;x++){
+			scaled_depth_img.at<cv::Vec3b>(y, x) =  scaled_border_depth_img.at<cv::Vec3b>(y+1, x+1);
+			cv::Vec3b color = inpainted_border_depth_img.at<cv::Vec3b>(y+1, x+1);
+			inpainted_depth_img.at<cv::Vec3b>(y, x) = color;
+			
+			if(color[0] == 0 && color[1] == 0 && color[2] == 0){
+				blackCount++;
+			}
+			
+		}
+	}
+	std::cout << 'B' << blackCount << std::endl;
+	depthMapValid = true;
+
+	depth_mask_img.release();
+	scaled_border_depth_img.release();
+	inpainted_border_depth_img.release();
+
+ //   cv::imshow( "Depth map", depth_img );
+ //   cv::imshow( "Scaled depth map", scaled_depth_img );
+	cv::imshow("Inpainted depth map", inpainted_depth_img);
 	glBuffersValid = false;
+}
+
+void KeyFrameDisplay::drawMesh(float alpha)
+{
+	float halfWidth = depthMapWidth / 2.0f, halfHeight = depthMapHeight / 2.0f;
+	float x1, x2, y1, y2;
+
+	if(depthMapValid){
+		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		//glEnable( GL_BLEND );
+		glBegin(GL_QUADS);  
+		for(int y=0;y<depthMapHeight-1;y++){
+			for(int x=0;x<depthMapWidth-1;x++){
+				x1 = (x - halfWidth) / halfWidth;
+				x2 = (x + 1 - halfWidth) / halfWidth;
+				y1 = (halfHeight - y) / halfHeight;
+				y2 = (halfHeight - y -1) / halfHeight;
+				cv::Vec3b colorX1Y1 = inpainted_depth_img.at<cv::Vec3b>(y, x);
+				cv::Vec3b colorX1Y2 = inpainted_depth_img.at<cv::Vec3b>(y+1, x);
+				cv::Vec3b colorX2Y1 = inpainted_depth_img.at<cv::Vec3b>(y, x+1);
+				cv::Vec3b colorX2Y2 = inpainted_depth_img.at<cv::Vec3b>(y+1, x+1);
+
+				glNormal3f(0.0f, 0.0f, 1.0f); 
+
+				glColor4f(colorX1Y1[2] / 255.0f, colorX1Y1[1] / 255.0f, colorX1Y1[0] / 255.0f, alpha);
+				glVertex3f(x1, y1, -1*color2Depth(colorX1Y1));
+				glColor4f(colorX1Y2[2] / 255.0f, colorX1Y2[1] / 255.0f, colorX1Y2[0] / 255.0f, alpha);
+				glVertex3f(x1, y2, -1*color2Depth(colorX1Y2));
+				glColor4f(colorX2Y2[2] / 255.0f, colorX2Y2[1] / 255.0f, colorX2Y2[0] / 255.0f, alpha);
+				glVertex3f(x2, y2, -1*color2Depth(colorX2Y2));
+				glColor4f(colorX2Y1[2] / 255.0f, colorX2Y1[1] / 255.0f, colorX2Y2[0] / 255.0f, alpha);
+				glVertex3f(x2, y1, -1*color2Depth(colorX2Y1));
+
+			}
+		}
+		glEnd();
+	}
+
 }
 
 void KeyFrameDisplay::refreshPC()
@@ -189,12 +318,13 @@ void KeyFrameDisplay::refreshPC()
 			tmpBuffer[vertexBufferNumPoints].point[1] = -(y*fyi + cyi) * depth; // 1.0f / float(height/2 - y);
 			tmpBuffer[vertexBufferNumPoints].point[2] = -depth;
 
+			cv::Vec3b color = getVisualizationColor(originalInput[x+y*width].idepth);
 			//std::cout << int(originalInput[x+y*width].color[0]) << ',' << int(originalInput[x+y*width].color[1]) << ',' <<  int(originalInput[x+y*width].color[2]) << std::endl;
 
 			tmpBuffer[vertexBufferNumPoints].color[3] = 100;
-			tmpBuffer[vertexBufferNumPoints].color[2] = originalInput[x+y*width].color[0];
-			tmpBuffer[vertexBufferNumPoints].color[1] = originalInput[x+y*width].color[1];
-			tmpBuffer[vertexBufferNumPoints].color[0] = originalInput[x+y*width].color[2];
+			tmpBuffer[vertexBufferNumPoints].color[2] = color[0];
+			tmpBuffer[vertexBufferNumPoints].color[1] = color[1];
+			tmpBuffer[vertexBufferNumPoints].color[0] = color[2];
 
 			vertexBufferNumPoints++;
 			displayed++;
@@ -367,7 +497,7 @@ void KeyFrameDisplay::drawPC(float pointSize, float alpha)
 	}
 
 
-	//glPushMatrix();
+	glPushMatrix();
 
 
 	  	//glMatrixMode(GL_MODELVIEW);
@@ -390,7 +520,7 @@ void KeyFrameDisplay::drawPC(float pointSize, float alpha)
 		glDisableClientState(GL_COLOR_ARRAY);
 		glDisableClientState(GL_VERTEX_ARRAY);
 
-	//glPopMatrix();
+	glPopMatrix();
 
 
 

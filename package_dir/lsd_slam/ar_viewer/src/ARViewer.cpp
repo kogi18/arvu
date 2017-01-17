@@ -215,17 +215,17 @@ void ARViewer::draw(){
 	renderBackgroundGL();
 	glPopMatrix();
 
-
+/*
 	glScalef(10.0f, 10.0f, 10.0f);
 	kfd->refreshPC();
 	kfd->drawPC();
+	//kfd->drawMesh();
 	glScalef(0.1f, 0.1f, 0.1f);
-
-
+*/
 	/*
 	 * Exercise 1.3 - Replace the box with one or more complex 3D objects
 	 */
-
+/*
 	glTranslatef(CUBE_x, CUBE_y, CUBE_z);
 	drawCube();
 
@@ -288,7 +288,7 @@ void ARViewer::draw(){
 	glTranslatef(CO_x , CO_y, CO_z);
 	glRotatef(CO_Deg_y, 0.0f, 1.0f, 0.0f); // rotation around Y
 	drawComplex();
-
+*/
 }
 
 void ARViewer::init(){

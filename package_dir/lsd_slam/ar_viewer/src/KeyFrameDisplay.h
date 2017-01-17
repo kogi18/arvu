@@ -30,6 +30,10 @@
 #include <sstream>
 #include <fstream>
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
+
 struct MyVertex
 {
 	float point[3];
@@ -59,12 +63,15 @@ public:
 
 	int flushPC(std::ofstream* f);
 
-
+	cv::Vec3b getVisualizationColor(float idepth) const;
+	float color2Depth(cv::Vec3b color);
 
 	int id;
 	double time;
 
 	int totalPoints, displayedPoints;
+
+	void drawMesh(float alpha = 0.5f);
 
 
 	// camera pose
@@ -95,6 +102,11 @@ private:
 	bool vertexBufferIdValid;	// true if the vertixBufferID is valid (doesnt mean the data in there is still valid)
 	bool glBuffersValid;		// true if the vertexBufferID contains valid data
 
+	int depthMapHeight, depthMapWidth;
+	cv::Mat depth_img;
+	cv::Mat scaled_depth_img;
+	cv::Mat inpainted_depth_img;
+	bool depthMapValid;
 };
 
 
