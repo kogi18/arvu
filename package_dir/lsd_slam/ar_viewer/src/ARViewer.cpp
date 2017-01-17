@@ -97,8 +97,9 @@ void ARViewer::addPoseMsg(geometry_msgs::PoseStampedConstPtr msg){
 	// it also appears that the given X is positive to the left, so double negate on x
 	// for pose vector we have to also scale it from image size to OpenGL size = empirically it seems to be a scale of 10
 	qglviewer::Vec pose = qglviewer::Vec(10*msg->pose.position.x, -10*msg->pose.position.y, -10*msg->pose.position.z);
-	//qglviewer::Vec pose = qglviewer::Vec(msg->pose.position.x, -msg->pose.position.y, -msg->pose.position.z);
+//	qglviewer::Vec pose = qglviewer::Vec(msg->pose.position.x, -msg->pose.position.y, -msg->pose.position.z);
 	qglviewer::Quaternion orientation = qglviewer::Quaternion(msg->pose.orientation.x, -msg->pose.orientation.y, -msg->pose.orientation.z, msg->pose.orientation.w);
+//	qglviewer::Quaternion orientation = qglviewer::Quaternion(-msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, -msg->pose.orientation.w);
 
 
 
@@ -214,9 +215,11 @@ void ARViewer::draw(){
 	renderBackgroundGL();
 	glPopMatrix();
 
+
+	glScalef(10.0f, 10.0f, 10.0f);
 	kfd->refreshPC();
 	kfd->drawPC();
-	//kfd->drawCam();
+	glScalef(0.1f, 0.1f, 0.1f);
 
 
 	/*
