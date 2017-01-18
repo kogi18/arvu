@@ -125,8 +125,11 @@ void ARViewer::addFrameMsg(ar_viewer::keyframeMsgConstPtr msg){
 			}
 			else{
 				//reinitilize the kfd since we have a new input (id < than before)
+				// OR SHOULD I RATHER IGNORE IT ?
+				std::cout << "MSG ID=" << msg->id << " is smaller than previous saved ID=" << kfd->id << ". Reinitializing KFD." << std::endl;
 				delete kfd;
 				kfd = new KeyFrameDisplay();
+				kfd->mustDrawMesh = mustDrawMesh;
 				kfd->setFrom(msg);
 			}
 		}
@@ -224,7 +227,7 @@ void ARViewer::drawGround(){
 				z1 = float(z - halfPoint) / halfPoint;
 				z2 = float(z + 1 - halfPoint) / halfPoint;
 				glNormal3f(0.0f, 1.0f, 0.0f); 
-				glColor3f(1.0f, 1.0f, 0.0f);
+				glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
 				glVertex3f(x1, 0.0f, z1);
 				glVertex3f(x2, 0.0f, z1);
 				glVertex3f(x2, 0.0f, z2);
@@ -242,15 +245,15 @@ void ARViewer::draw(){
 	glPopMatrix();
 
 	glScalef(10.0f, 10.0f, 10.0f);
-	if(mustDrawPC > 0){
-		kfd->refreshPC();
-		kfd->drawPC();
+	if(mustDrawGround){
+		drawGround();
 	}
 	if(mustDrawMesh > 0){
 		kfd->drawMesh(0.75f);		
 	}
-	if(mustDrawGround){
-		drawGround();
+	if(mustDrawPC > 0){
+		kfd->refreshPC();
+		kfd->drawPC();
 	}
 	glScalef(0.1f, 0.1f, 0.1f);
 
@@ -328,6 +331,7 @@ void ARViewer::init(){
 
 	if(mustDrawPC > 0 || mustDrawMesh > 0){
 		kfd = new KeyFrameDisplay();
+		kfd->mustDrawMesh = mustDrawMesh;
 	}
 	glGenTextures(1, &textureId);
 	glBindTexture(GL_TEXTURE_2D, textureId);

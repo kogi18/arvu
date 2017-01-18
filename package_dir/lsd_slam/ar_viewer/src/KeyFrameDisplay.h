@@ -73,6 +73,7 @@ public:
 
 	void drawMesh(float alpha = 1);
 
+	int mustDrawMesh;
 
 	// camera pose
 	// may be updated by kf-graph.
@@ -103,8 +104,6 @@ private:
 	bool glBuffersValid;		// true if the vertexBufferID contains valid data
 
 	int depthMapHeight, depthMapWidth;
-	cv::Mat depth_img;
-	cv::Mat scaled_depth_img;
 	cv::Mat inpainted_depth_img;
 	bool depthMapValid;
 };

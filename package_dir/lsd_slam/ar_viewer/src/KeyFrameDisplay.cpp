@@ -53,6 +53,7 @@ KeyFrameDisplay::KeyFrameDisplay()
 	cv::resizeWindow("Inpainted depth map",640, 480);
 	depthMapHeight = 15;
 	depthMapWidth = 20;
+	mustDrawMesh = 0;
 }
 
 
@@ -67,9 +68,9 @@ KeyFrameDisplay::~KeyFrameDisplay()
 	if(originalInput != 0)
 		delete[] originalInput;
 
-	depth_img.release();
-	scaled_depth_img.release();
-	inpainted_depth_img.release();
+	if(mustDrawMesh > 0){
+		inpainted_depth_img.release();
+	}
 }
 
 cv::Vec3b KeyFrameDisplay::getVisualizationColor(float idepth) const{
@@ -147,64 +148,73 @@ void KeyFrameDisplay::setFrom(ar_viewer::keyframeMsgConstPtr msg)
 		originalInput = new InputPointDense[width*height];
 		memcpy(originalInput, msg->pointcloud.data(), width*height*sizeof(InputPointDense));
 	}
-
-	depth_img = cv::Mat::zeros(height, width, CV_8UC3);
-	scaled_depth_img = cv::Mat::zeros(depthMapHeight, depthMapWidth, CV_8UC3);
-	inpainted_depth_img = cv::Mat::zeros(depthMapHeight, depthMapWidth, CV_8UC3);
-	cv::Mat scaled_border_depth_img = cv::Mat::zeros(depthMapHeight+1, depthMapWidth+1, CV_8UC3);
-	cv::Mat inpainted_border_depth_img = cv::Mat::zeros(depthMapHeight+1, depthMapWidth+1, CV_8UC3);
-
-	float idepth;
-	// set the colors
-	for(int y=0;y<height;y++){
-		for(int x=0;x<width;x++){
-			idepth = originalInput[x+y*width].idepth;
-			cv::Vec3b color = getVisualizationColor(idepth);
-			depth_img.at<cv::Vec3b>(y, x) = color;
-		}
-	}
-	// scale down the depth map
-	cv::resize(depth_img,scaled_border_depth_img,cv::Size(scaled_border_depth_img.cols, scaled_border_depth_img.rows), cv::INTER_CUBIC); //linear has big losses in shrinking
-	cv::Mat depth_mask_img = cv::Mat::zeros(scaled_border_depth_img.rows, scaled_border_depth_img.cols,CV_8UC1);
-	// generate the mask for inpaint
-	int treshold = 25;
-	for(int y=0;y<scaled_border_depth_img.rows;y++){
-		for(int x=0;x<scaled_border_depth_img.cols;x++){
-			cv::Vec3b color = scaled_border_depth_img.at<cv::Vec3b>(y, x);
-			if(color[0] < treshold && color[1] < treshold && color[2] < treshold){
-//			if(color[0] == 0 && color[1] == 0 && color[2] == 0){
-				depth_mask_img.at<uchar>(y, x) = 255;
-			}
-		}
-	}
-	// do the inpaint
-	inpaint(scaled_border_depth_img, depth_mask_img, inpainted_border_depth_img, 2, cv::INPAINT_TELEA);
-
-	//remove the border - inpainting fails at left and upper border, so we do it on 1px higher and wider image than remove the first row and column
-	//int blackCount = 0;
-	for(int y=0;y<scaled_depth_img.rows;y++){
-		for(int x=0;x<scaled_depth_img.cols;x++){
-			scaled_depth_img.at<cv::Vec3b>(y, x) =  scaled_border_depth_img.at<cv::Vec3b>(y+1, x+1);
-			cv::Vec3b color = inpainted_border_depth_img.at<cv::Vec3b>(y+1, x+1);
-			inpainted_depth_img.at<cv::Vec3b>(y, x) = color;
-			/*
-			if(color[0] == 0 && color[1] == 0 && color[2] == 0){
-				blackCount++;
-			}
-			*/
-		}
-	}
-	//std::cout << 'B' << blackCount << std::endl;
-	depthMapValid = true;
-
-	depth_mask_img.release();
-	scaled_border_depth_img.release();
-	inpainted_border_depth_img.release();
-
- //   cv::imshow( "Depth map", depth_img );
- //   cv::imshow( "Scaled depth map", scaled_depth_img );
-	cv::imshow("Inpainted depth map", inpainted_depth_img);
 	glBuffersValid = false;
+
+	if(mustDrawMesh > 0){
+		cv::Mat depth_img = cv::Mat::zeros(height, width, CV_8UC3);
+		cv::Mat scaled_depth_img = cv::Mat::zeros(depthMapHeight, depthMapWidth, CV_8UC3);
+		cv::Mat scaled_border_depth_img = cv::Mat::zeros(depthMapHeight+1, depthMapWidth+1, CV_8UC3);
+		cv::Mat inpainted_border_depth_img = cv::Mat::zeros(depthMapHeight+1, depthMapWidth+1, CV_8UC3);
+
+		inpainted_depth_img = cv::Mat::zeros(depthMapHeight, depthMapWidth, CV_8UC3);
+
+		float idepth;
+		// set the colors
+		for(int y=0;y<height;y++){
+			for(int x=0;x<width;x++){
+				idepth = originalInput[x+y*width].idepth;
+				cv::Vec3b color = getVisualizationColor(idepth);
+				depth_img.at<cv::Vec3b>(y, x) = color;
+			}
+		}
+		// scale down the depth map
+		cv::resize(depth_img,scaled_border_depth_img,cv::Size(scaled_border_depth_img.cols, scaled_border_depth_img.rows), cv::INTER_CUBIC); //linear has big losses in shrinking
+		cv::Mat depth_mask_img = cv::Mat::zeros(scaled_border_depth_img.rows, scaled_border_depth_img.cols,CV_8UC1);
+		// generate the mask for inpaint
+		int treshold = 25;
+		for(int y=0;y<scaled_border_depth_img.rows;y++){
+			for(int x=0;x<scaled_border_depth_img.cols;x++){
+				cv::Vec3b color = scaled_border_depth_img.at<cv::Vec3b>(y, x);
+				if(color[0] < treshold && color[1] < treshold && color[2] < treshold){
+	//			if(color[0] == 0 && color[1] == 0 && color[2] == 0){
+					depth_mask_img.at<uchar>(y, x) = 255;
+				}
+			}
+		}
+		// do the inpaint
+		inpaint(scaled_border_depth_img, depth_mask_img, inpainted_border_depth_img, 2, cv::INPAINT_TELEA);
+
+		//remove the border - inpainting fails at left and upper border, so we do it on 1px higher and wider image than remove the first row and column
+		//int blackCount = 0;
+		for(int y=0;y<scaled_depth_img.rows;y++){
+			for(int x=0;x<scaled_depth_img.cols;x++){
+				scaled_depth_img.at<cv::Vec3b>(y, x) =  scaled_border_depth_img.at<cv::Vec3b>(y+1, x+1);
+				cv::Vec3b color = inpainted_border_depth_img.at<cv::Vec3b>(y+1, x+1);
+				inpainted_depth_img.at<cv::Vec3b>(y, x) = color;
+				/*
+				if(color[0] == 0 && color[1] == 0 && color[2] == 0){
+					blackCount++;
+				}
+				*/
+			}
+		}
+		//std::cout << 'B' << blackCount << std::endl;
+		depthMapValid = true;
+
+	 //   cv::imshow( "Depth map", depth_img );
+	 //   cv::imshow( "Scaled depth map", scaled_depth_img );
+		cv::imshow("Inpainted depth map", inpainted_depth_img);
+
+		depth_mask_img.release();
+		scaled_border_depth_img.release();
+		inpainted_border_depth_img.release();
+		depth_img.release();
+		scaled_depth_img.release();
+	}
+	else{
+		// have to close the window if not used
+		cv::destroyWindow("Inpainted depth map");
+	}
 }
 
 void KeyFrameDisplay::drawMesh(float alpha)
@@ -226,7 +236,7 @@ void KeyFrameDisplay::drawMesh(float alpha)
 
 
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				glEnable( GL_BLEND );
+				glEnable(GL_BLEND);
 
 				glBegin(GL_QUADS);  
 				glNormal3f(0.0f, 0.0f, 1.0f); 
@@ -240,6 +250,8 @@ void KeyFrameDisplay::drawMesh(float alpha)
 				glColor4f(colorX2Y1[2] / 255.0f, colorX2Y1[1] / 255.0f, colorX2Y2[0] / 255.0f, alpha);
 				glVertex3f(x2, y1, -1*color2Depth(colorX2Y1));
 				glEnd();
+
+				glDisable(GL_BLEND);
 
 				//wireframe
 				glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
