@@ -49,8 +49,8 @@ KeyFrameDisplay::KeyFrameDisplay()
 //	cv::namedWindow("Depth map");// Create a window for display.
 //	cv::namedWindow("Scaled depth map", cv::WINDOW_NORMAL);// Create a window for display.
 //	cv::resizeWindow("Scaled depth map",400, 300);
-	cv::namedWindow("Inpainted depth map", cv::WINDOW_NORMAL);// Create a window for display.
-	cv::resizeWindow("Inpainted depth map",640, 480);
+//	cv::namedWindow("Inpainted depth map", cv::WINDOW_NORMAL);// Create a window for display.
+//	cv::resizeWindow("Inpainted depth map",640, 480);
 	depthMapHeight = 15;
 	depthMapWidth = 20;
 	mustDrawMesh = 0;
@@ -193,7 +193,7 @@ void KeyFrameDisplay::setFrom(ar_viewer::keyframeMsgConstPtr msg)
 				cv::Vec3b color = inpainted_border_depth_img.at<cv::Vec3b>(y+1, x+1);
 				inpainted_depth_img.at<cv::Vec3b>(y, x) = color;
 				currentDepth = color2Depth(color);
-				if(currentDepth < maxDepth){
+				if(currentDepth > maxDepth){
 					maxDepth = currentDepth;
 				}
 				/*
@@ -204,12 +204,12 @@ void KeyFrameDisplay::setFrom(ar_viewer::keyframeMsgConstPtr msg)
 			}
 		}
 		//std::cout << 'B' << blackCount << std::endl;
-		std::cout << maxDepth << std::endl;
+		//std::cout << maxDepth << std::endl;
 		depthMapValid = true;
 
 	 //   cv::imshow( "Depth map", depth_img );
 	 //   cv::imshow( "Scaled depth map", scaled_depth_img );
-		cv::imshow("Inpainted depth map", inpainted_depth_img);
+	//	cv::imshow("Inpainted depth map", inpainted_depth_img);
 
 		depth_mask_img.release();
 		scaled_border_depth_img.release();
@@ -233,8 +233,8 @@ void KeyFrameDisplay::drawMesh(float alpha)
 			for(int x=0;x<depthMapWidth-1;x++){
 				x1 = (x - halfWidth) / halfWidth;
 				x2 = (x + 1 - halfWidth) / halfWidth;
-				y1 = (y - halfHeight) / halfHeight;
-				y2 = (y + 1 - halfHeight) / halfHeight;
+				y1 = (y - depthMapHeight) / halfHeight;
+				y2 = (y + 1 - depthMapHeight) / halfHeight;
 				cv::Vec3b colorX1Y1 = inpainted_depth_img.at<cv::Vec3b>(y, x);
 				cv::Vec3b colorX1Y2 = inpainted_depth_img.at<cv::Vec3b>(y+1, x);
 				cv::Vec3b colorX2Y1 = inpainted_depth_img.at<cv::Vec3b>(y, x+1);

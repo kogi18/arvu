@@ -58,8 +58,8 @@ ARViewer::ARViewer(){
 	isCirgling = 1; // 1 = true
 	isFirstHalf = 1;
 
-	mustDrawObjects = 0;
-	mustDrawMesh = 1;
+	mustDrawObjects = 1;
+	mustDrawMesh = 0;
 	mustDrawGround = 1;
 	mustDrawPC = 0;
 
@@ -224,14 +224,14 @@ void ARViewer::drawGround(){
 			for(int x=0;x<quadsPerAxis-1;x++){
 				x1 = float(x - halfPoint) / halfPoint;
 				x2 = float(x + 1 - halfPoint) / halfPoint;
-				z1 = float(z - halfPoint) / halfPoint;
-				z2 = float(z + 1 - halfPoint) / halfPoint;
+				z1 = float(z - quadsPerAxis) / halfPoint;
+				z2 = float(z + 1 - quadsPerAxis) / halfPoint;
 				glNormal3f(0.0f, 1.0f, 0.0f); 
-				glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
-				glVertex3f(x1, 0.0f, z1);
-				glVertex3f(x2, 0.0f, z1);
-				glVertex3f(x2, 0.0f, z2);
-				glVertex3f(x1, 0.0f, z2);
+				glColor3f(1.0f, 1.0f, 0.0f);
+				glVertex3f(x1, -0.5f, z1);
+				glVertex3f(x2, -0.5f, z1);
+				glVertex3f(x2, -0.5f, z2);
+				glVertex3f(x1, -0.5f, z2);
 			}
 		}
 	glEnd();
@@ -244,20 +244,25 @@ void ARViewer::draw(){
 	renderBackgroundGL();
 	glPopMatrix();
 
+	glRotatef(30.0f, 1.0f, 0.0f, 0.0f);
+	glRotatef(-4.0f, 0.0f, 0.0f, 1.0f);
 	glScalef(10.0f, 10.0f, 10.0f);
 	if(mustDrawGround){
 		drawGround();
 	}
 	if(mustDrawMesh > 0){
+		glTranslatef(0.0f, 0.5f, 0.0f);
 		kfd->drawMesh(0.75f);		
+		glTranslatef(0.0f, -0.5f, 0.0f);
 	}
 	if(mustDrawPC > 0){
 		kfd->refreshPC();
 		kfd->drawPC();
 	}
 	glScalef(0.1f, 0.1f, 0.1f);
-
-	/*
+	glRotatef(4.0f, 0.0f, 0.0f, 1.0f);
+	glRotatef(-30.0f, 1.0f, 0.0f, 0.0f);
+	/* 
 	 * Exercise 1.3 - Replace the box with one or more complex 3D objects
 	 */
 
