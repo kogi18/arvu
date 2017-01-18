@@ -58,16 +58,22 @@ ARViewer::ARViewer(){
 	isCirgling = 1; // 1 = true
 	isFirstHalf = 1;
 
+	mustDrawObjects = 0;
+	mustDrawMesh = 1;
+	mustDrawGround = 1;
+	mustDrawPC = 0;
+
 	emptyCurrentImg();
-	initComplexModel();
+	if(mustDrawObjects > 0){
+		initComplexModel();
+	}
 }
 
 ARViewer::~ARViewer() {
 	current_img.release();
-	delete kfd;
-	//delete[] vertexList;
-	//delete[] normalList;
-	//delete[] textureList;
+	if(mustDrawPC > 0 || mustDrawMesh > 0){
+		delete kfd;
+	}
 }
 
 void ARViewer::emptyCurrentImg(){
@@ -109,28 +115,22 @@ void ARViewer::addPoseMsg(geometry_msgs::PoseStampedConstPtr msg){
 }
 
 void ARViewer::addFrameMsg(ar_viewer::keyframeMsgConstPtr msg){
-	boost::lock_guard<boost::mutex> guard(dataMutex); // unlocks the dataMutex at function end
-	//std::cout << "FRAME TIME: " << int(msg->time) << std::endl;
-	if(msg->isKeyframe &&  msg->pointcloud.size() > 0){
-		std::cout << "ID: " << msg->id << " pointcloud size: " << msg->pointcloud.size() << std::endl;
-		if(msg->id > kfd->id){
-			kfd->setFrom(msg);
-		}
-		else{
-			//reinitilize the kfd since we have a new input (id < than before)
-			delete kfd;
-			kfd = new KeyFrameDisplay();
-			kfd->setFrom(msg);
+	if(mustDrawPC > 0 || mustDrawMesh > 0){
+		boost::lock_guard<boost::mutex> guard(dataMutex); // unlocks the dataMutex at function end
+		//std::cout << "FRAME TIME: " << int(msg->time) << std::endl;
+		if(msg->isKeyframe &&  msg->pointcloud.size() > 0){
+			std::cout << "ID: " << msg->id << " pointcloud size: " << msg->pointcloud.size() << std::endl;
+			if(msg->id > kfd->id){
+				kfd->setFrom(msg);
+			}
+			else{
+				//reinitilize the kfd since we have a new input (id < than before)
+				delete kfd;
+				kfd = new KeyFrameDisplay();
+				kfd->setFrom(msg);
+			}
 		}
 	}
-	//msg.poitncloud ... if size > 0 .... idepth 
-	//cv::inpaint ...
-
-	// just 1 week left, so make a fun animation to see it from more angles - like a flying darth vader to see it from different angles
-	// go from keypoints to the mesh painted with inpaint to see where it is deep ... sthg similar to  KeyFrameDisplay::refreshPC()
-	// make it a smaller resolution/scale
-	// if time ... collision detection should be added
-	// MAIN POINT => MAKE IT FUN
 }
 
 void ARViewer::drawCube(){
@@ -241,87 +241,94 @@ void ARViewer::draw(){
 	renderBackgroundGL();
 	glPopMatrix();
 
-
 	glScalef(10.0f, 10.0f, 10.0f);
-//	kfd->refreshPC();
-//	kfd->drawPC();
-	kfd->drawMesh(0.75f);
-	//drawGround();
+	if(mustDrawPC > 0){
+		kfd->refreshPC();
+		kfd->drawPC();
+	}
+	if(mustDrawMesh > 0){
+		kfd->drawMesh(0.75f);		
+	}
+	if(mustDrawGround){
+		drawGround();
+	}
 	glScalef(0.1f, 0.1f, 0.1f);
 
 	/*
 	 * Exercise 1.3 - Replace the box with one or more complex 3D objects
 	 */
 
-	glTranslatef(CUBE_x, CUBE_y, CUBE_z);
-	drawCube();
+	if(mustDrawObjects){
+		glTranslatef(CUBE_x, CUBE_y, CUBE_z);
+		drawCube();
 
-	// Animation calculation - 8-circling flight
-	currentFrame++;
-	if(isCirgling == 1){
-		// half circle movement
-		if(isFirstHalf == 1){
-			// forward direction
-			CO_Deg_y += circlingRotStepDeg;
-			CO_x = -circlingBufferX -circlingRadius * sin((CO_Deg_y + 90.0f)*deg2rad);
-			CO_y += droppingSpeedY;
-			CO_z = -circlingRadius * cos((CO_Deg_y + 90.0f)*deg2rad); 
-			//DEBUG(circlingRadius * sin((CO_Deg_y + 90.0f)*deg2rad));
-		}
-		else{
-			//returning direction
-			CO_Deg_y -= circlingRotStepDeg;
-			CO_x = circlingBufferX - circlingRadius * sin((CO_Deg_y - 90.0f)*deg2rad);
-			CO_y -= droppingSpeedY;
-			CO_z = -circlingRadius * cos((CO_Deg_y - 90.0f)*deg2rad); 
-			//DEBUG(circlingRadius * sin((CO_Deg_y - 90.0f)*deg2rad));
-		}
-
-		//CO_z += //circlingRadius * 2.0f / circlingMax;
-
-		if(currentFrame >= circlingMax){
-			currentFrame = 0;
-			isCirgling = 0;
+		// Animation calculation - 8-circling flight
+		currentFrame++;
+		if(isCirgling == 1){
+			// half circle movement
 			if(isFirstHalf == 1){
-				CO_Deg_y = 90.f;
+				// forward direction
+				CO_Deg_y += circlingRotStepDeg;
+				CO_x = -circlingBufferX -circlingRadius * sin((CO_Deg_y + 90.0f)*deg2rad);
+				CO_y += droppingSpeedY;
+				CO_z = -circlingRadius * cos((CO_Deg_y + 90.0f)*deg2rad); 
+				//DEBUG(circlingRadius * sin((CO_Deg_y + 90.0f)*deg2rad));
 			}
 			else{
-				CO_Deg_y = -90.f;				
+				//returning direction
+				CO_Deg_y -= circlingRotStepDeg;
+				CO_x = circlingBufferX - circlingRadius * sin((CO_Deg_y - 90.0f)*deg2rad);
+				CO_y -= droppingSpeedY;
+				CO_z = -circlingRadius * cos((CO_Deg_y - 90.0f)*deg2rad); 
+				//DEBUG(circlingRadius * sin((CO_Deg_y - 90.0f)*deg2rad));
+			}
+
+			//CO_z += //circlingRadius * 2.0f / circlingMax;
+
+			if(currentFrame >= circlingMax){
+				currentFrame = 0;
+				isCirgling = 0;
+				if(isFirstHalf == 1){
+					CO_Deg_y = 90.f;
+				}
+				else{
+					CO_Deg_y = -90.f;				
+				}
 			}
 		}
-	}
-	else{
-		// diagonal movement
-		if(isFirstHalf == 1){
-			// forward direction
-			CO_x += straightSpeedX;
-			CO_y += 0.0f;
-		}
 		else{
-			//returning direction
-			CO_x -= straightSpeedX;
-			CO_y += 0.0f;
-		}
+			// diagonal movement
+			if(isFirstHalf == 1){
+				// forward direction
+				CO_x += straightSpeedX;
+				CO_y += 0.0f;
+			}
+			else{
+				//returning direction
+				CO_x -= straightSpeedX;
+				CO_y += 0.0f;
+			}
 
-		CO_z -= straightSpeedZ;
+			CO_z -= straightSpeedZ;
 
-		if(currentFrame >= straightMovementMax){
-			currentFrame = 0;
-			isCirgling = 1;
-			isFirstHalf = 1 - isFirstHalf;
+			if(currentFrame >= straightMovementMax){
+				currentFrame = 0;
+				isCirgling = 1;
+				isFirstHalf = 1 - isFirstHalf;
+			}
 		}
+		//std::cout << "X: " << CO_x + CUBE_x << " Y: " << CO_y + CUBE_y << " Z: " << CO_z + CUBE_z<< std::endl;
+		glTranslatef(CO_x , CO_y, CO_z);
+		glRotatef(CO_Deg_y, 0.0f, 1.0f, 0.0f); // rotation around Y
+		drawComplex();
 	}
-	//std::cout << "X: " << CO_x + CUBE_x << " Y: " << CO_y + CUBE_y << " Z: " << CO_z + CUBE_z<< std::endl;
-	glTranslatef(CO_x , CO_y, CO_z);
-	glRotatef(CO_Deg_y, 0.0f, 1.0f, 0.0f); // rotation around Y
-	drawComplex();
-
 }
 
 void ARViewer::init(){
 
-	kfd = new KeyFrameDisplay();
-
+	if(mustDrawPC > 0 || mustDrawMesh > 0){
+		kfd = new KeyFrameDisplay();
+	}
 	glGenTextures(1, &textureId);
 	glBindTexture(GL_TEXTURE_2D, textureId);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -339,11 +346,13 @@ void ARViewer::init(){
 	glTexParameterf( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
 
 	// adding textures for the complex model
-	cv::Mat texImage = cv::imread(complexTexFile, CV_LOAD_IMAGE_UNCHANGED);   // Read the file
-	glBindTexture(GL_TEXTURE_2D, objectTextureId);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texImage.cols, texImage.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, texImage.data);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	texImage.release();
+	if(mustDrawObjects > 0){
+		cv::Mat texImage = cv::imread(complexTexFile, CV_LOAD_IMAGE_UNCHANGED);   // Read the file
+		glBindTexture(GL_TEXTURE_2D, objectTextureId);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, texImage.cols, texImage.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, texImage.data);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		texImage.release();
+	}
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 

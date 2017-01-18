@@ -526,9 +526,6 @@ void KeyFrameDisplay::drawPC(float pointSize, float alpha)
 
 	glPushMatrix();
 
-
-	  	//glMatrixMode(GL_MODELVIEW);
-  		//glLoadIdentity();
 		//Sophus::Matrix4f m = camToWorld.matrix();
 		//glMultMatrixf((GLfloat*)m.data());
 

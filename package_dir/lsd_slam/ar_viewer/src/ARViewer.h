@@ -58,6 +58,9 @@ private:
 	float deg2rad = PI / 180;
 	// keyframes for 2.0
 	KeyFrameDisplay* kfd;
+
+	// booleans
+	int mustDrawObjects, mustDrawMesh, mustDrawGround, mustDrawPC;
 };
 
 #endif /* ARVIEWER_H_ */
