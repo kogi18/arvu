@@ -46,11 +46,11 @@ KeyFrameDisplay::KeyFrameDisplay()
 	my_scaledTH = my_absTH = 0;
 
 	totalPoints = displayedPoints = 0;
-//	cv::namedWindow("Depth map");// Create a window for display.
-//	cv::namedWindow("Scaled depth map", cv::WINDOW_NORMAL);// Create a window for display.
-//	cv::resizeWindow("Scaled depth map",400, 300);
-//	cv::namedWindow("Inpainted depth map", cv::WINDOW_NORMAL);// Create a window for display.
-//	cv::resizeWindow("Inpainted depth map",640, 480);
+	cv::namedWindow("Depth map");// Create a window for display.
+	cv::namedWindow("Scaled depth map", cv::WINDOW_NORMAL);// Create a window for display.
+	cv::resizeWindow("Scaled depth map",400, 300);
+	cv::namedWindow("Inpainted depth map", cv::WINDOW_NORMAL);// Create a window for display.
+	cv::resizeWindow("Inpainted depth map",640, 480);
 	depthMapHeight = 15;
 	depthMapWidth = 20;
 	mustDrawMesh = 0;
@@ -207,9 +207,9 @@ void KeyFrameDisplay::setFrom(ar_viewer::keyframeMsgConstPtr msg)
 		//std::cout << maxDepth << std::endl;
 		depthMapValid = true;
 
-	 //   cv::imshow( "Depth map", depth_img );
-	 //   cv::imshow( "Scaled depth map", scaled_depth_img );
-	//	cv::imshow("Inpainted depth map", inpainted_depth_img);
+	    cv::imshow( "Depth map", depth_img );
+	    cv::imshow( "Scaled depth map", scaled_depth_img );
+		cv::imshow("Inpainted depth map", inpainted_depth_img);
 
 		depth_mask_img.release();
 		scaled_border_depth_img.release();

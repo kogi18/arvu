@@ -58,10 +58,29 @@ ARViewer::ARViewer(){
 	isCirgling = 1; // 1 = true
 	isFirstHalf = 1;
 
-	mustDrawObjects = 1;
-	mustDrawMesh = 0;
+	fallingSpeed = 0.0f;
+	fallingAcceleration = -0.001f;
+
+	multipleCubeCount = 6;
+	currentCubeFall = 0;
+	CUBES = new float[3*multipleCubeCount];
+	// x, 					y, 					z
+	CUBES[0] =10.0f;	CUBES[1]=3.0f;		CUBES[2]=-13.0f;
+	CUBES[3] =7.0f;		CUBES[4]=5.0f;		CUBES[5]=-3.0f;
+	CUBES[6] =-1.0f;	CUBES[7]=2.0f;		CUBES[8]=-15.0f;
+	CUBES[9] =8.0f;		CUBES[10]=7.0f;		CUBES[11]=-7.0f;
+	CUBES[12] =2.0f;	CUBES[13]=9.0f;		CUBES[14]=-4.0f;
+	CUBES[15] =-1.0f;	CUBES[16]=4.0f;		CUBES[17]=-6.0f;
+
+	mustDrawObjects = 0;
+	mustDrawMesh = 1;
 	mustDrawGround = 1;
 	mustDrawPC = 0;
+
+	// ground assumptions
+	groundY = -0.5f;
+	groundRotX = 30.0f;
+	groundRotZ = -4.0f;
 
 	emptyCurrentImg();
 	if(mustDrawObjects > 0){
@@ -191,6 +210,24 @@ void ARViewer::drawCube(){
    //--------------------------------------------------------------------
 }
 
+void ARViewer::drawMultipleCubes(){
+	for(int cube=0; cube < multipleCubeCount; cube++){
+		if(cube < currentCubeFall){
+			CUBES[cube*3+1] += fallingSpeed;
+			if(CUBES[cube*3+1] - 1.0f < 10*groundY){
+				CUBES[cube*3+1] = groundY*10 + 1.0f;
+				if(currentCubeFall == cube + 1){
+					fallingSpeed = 0;
+					currentCubeFall++;
+				}
+			}
+			glTranslatef(CUBES[cube*3], CUBES[cube*3+1], CUBES[cube*3+2]);
+			drawCube();
+			glTranslatef(-CUBES[cube*3], -CUBES[cube*3+1], -CUBES[cube*3+2]);
+		}
+	}
+}
+
 void ARViewer::drawComplex(){
 	// seperation for faster Exercise 1.3 implementation
 	glEnable(GL_TEXTURE_2D);
@@ -209,7 +246,6 @@ void ARViewer::drawComplex(){
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glDisable(GL_TEXTURE_2D);
-
 }
 
 void ARViewer::drawGround(){
@@ -218,7 +254,7 @@ void ARViewer::drawGround(){
 	// simplify it into a 20x1x20 mesh from z 1 to -1
 	int quadsPerAxis = 20, halfPoint = quadsPerAxis / 2;
 	float x1, x2, z1, z2;
-	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	glBegin(GL_QUADS);
 		for(int z=0; z<quadsPerAxis-1; z++){
 			for(int x=0;x<quadsPerAxis-1;x++){
@@ -228,10 +264,10 @@ void ARViewer::drawGround(){
 				z2 = float(z + 1 - quadsPerAxis) / halfPoint;
 				glNormal3f(0.0f, 1.0f, 0.0f); 
 				glColor3f(1.0f, 1.0f, 0.0f);
-				glVertex3f(x1, -0.5f, z1);
-				glVertex3f(x2, -0.5f, z1);
-				glVertex3f(x2, -0.5f, z2);
-				glVertex3f(x1, -0.5f, z2);
+				glVertex3f(x1, groundY, z1);
+				glVertex3f(x2, groundY, z1);
+				glVertex3f(x2, groundY, z2);
+				glVertex3f(x1, groundY, z2);
 			}
 		}
 	glEnd();
@@ -244,31 +280,47 @@ void ARViewer::draw(){
 	renderBackgroundGL();
 	glPopMatrix();
 
-	glRotatef(30.0f, 1.0f, 0.0f, 0.0f);
-	glRotatef(-4.0f, 0.0f, 0.0f, 1.0f);
+	glRotatef(groundRotX, 1.0f, 0.0f, 0.0f);
+	glRotatef(groundRotZ, 0.0f, 0.0f, 1.0f);
 	glScalef(10.0f, 10.0f, 10.0f);
 	if(mustDrawGround){
 		drawGround();
 	}
 	if(mustDrawMesh > 0){
-		glTranslatef(0.0f, 0.5f, 0.0f);
+		glTranslatef(0.0f, -groundY, 0.0f);
 		kfd->drawMesh(0.75f);		
-		glTranslatef(0.0f, -0.5f, 0.0f);
+		glTranslatef(0.0f, groundY, 0.0f);
 	}
 	if(mustDrawPC > 0){
 		kfd->refreshPC();
 		kfd->drawPC();
 	}
 	glScalef(0.1f, 0.1f, 0.1f);
-	glRotatef(4.0f, 0.0f, 0.0f, 1.0f);
-	glRotatef(-30.0f, 1.0f, 0.0f, 0.0f);
+/*	glRotatef(-groundRotZ, 0.0f, 0.0f, 1.0f);
+	glRotatef(-groundRotX, 1.0f, 0.0f, 0.0f);
+*/
+
 	/* 
 	 * Exercise 1.3 - Replace the box with one or more complex 3D objects
 	 */
 
 	if(mustDrawObjects){
+
+
+		fallingSpeed += fallingAcceleration;
+		drawMultipleCubes();		
+		CUBE_y += fallingSpeed;
+		if(CUBE_y - 1.0f < 10*groundY){
+			CUBE_y = groundY*10 + 1.0f;
+			if(currentCubeFall == 0){
+				fallingSpeed = 0;
+				currentCubeFall++;
+			}
+		}
+
 		glTranslatef(CUBE_x, CUBE_y, CUBE_z);
 		drawCube();
+		/*
 
 		// Animation calculation - 8-circling flight
 		currentFrame++;
@@ -329,6 +381,7 @@ void ARViewer::draw(){
 		glTranslatef(CO_x , CO_y, CO_z);
 		glRotatef(CO_Deg_y, 0.0f, 1.0f, 0.0f); // rotation around Y
 		drawComplex();
+		*/
 	}
 }
 

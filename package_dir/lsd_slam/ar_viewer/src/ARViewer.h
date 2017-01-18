@@ -35,6 +35,7 @@ protected:
 	virtual void init();
 	virtual void initComplexModel();
 	virtual void drawGround();
+	virtual void drawMultipleCubes();
 private:
 	void emptyCurrentImg();
 	void renderBackgroundGL();
@@ -56,11 +57,17 @@ private:
 	float CUBE_x, CUBE_y, CUBE_z; //cube object positions
 	float PI = 3.1415926535897;
 	float deg2rad = PI / 180;
+	float fallingSpeed, fallingAcceleration;
+	int multipleCubeCount, currentCubeFall;
+	float *CUBES = NULL;	
+
 	// keyframes for 2.0
 	KeyFrameDisplay* kfd;
 
 	// booleans
 	int mustDrawObjects, mustDrawMesh, mustDrawGround, mustDrawPC;
+	// ground plane asumptions
+	float groundY, groundRotX, groundRotZ;
 };
 
 #endif /* ARVIEWER_H_ */
