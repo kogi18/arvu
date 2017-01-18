@@ -102,11 +102,11 @@ float KeyFrameDisplay::color2Depth(cv::Vec3b color){
 	if(idepth == 0){
 		return 0.0f;
 	}
-
+/*
 	if(idepth < 0){
 		idepth = -idepth;
 	}
-
+*/
 	return 1.0f/idepth;
 }
 
@@ -158,7 +158,7 @@ void KeyFrameDisplay::setFrom(ar_viewer::keyframeMsgConstPtr msg)
 
 		inpainted_depth_img = cv::Mat::zeros(depthMapHeight, depthMapWidth, CV_8UC3);
 
-		float idepth;
+		float idepth, currentDepth;
 		// set the colors
 		for(int y=0;y<height;y++){
 			for(int x=0;x<width;x++){
@@ -184,6 +184,7 @@ void KeyFrameDisplay::setFrom(ar_viewer::keyframeMsgConstPtr msg)
 		// do the inpaint
 		inpaint(scaled_border_depth_img, depth_mask_img, inpainted_border_depth_img, 2, cv::INPAINT_TELEA);
 
+		maxDepth = 0;
 		//remove the border - inpainting fails at left and upper border, so we do it on 1px higher and wider image than remove the first row and column
 		//int blackCount = 0;
 		for(int y=0;y<scaled_depth_img.rows;y++){
@@ -191,6 +192,10 @@ void KeyFrameDisplay::setFrom(ar_viewer::keyframeMsgConstPtr msg)
 				scaled_depth_img.at<cv::Vec3b>(y, x) =  scaled_border_depth_img.at<cv::Vec3b>(y+1, x+1);
 				cv::Vec3b color = inpainted_border_depth_img.at<cv::Vec3b>(y+1, x+1);
 				inpainted_depth_img.at<cv::Vec3b>(y, x) = color;
+				currentDepth = color2Depth(color);
+				if(currentDepth < maxDepth){
+					maxDepth = currentDepth;
+				}
 				/*
 				if(color[0] == 0 && color[1] == 0 && color[2] == 0){
 					blackCount++;
@@ -199,6 +204,7 @@ void KeyFrameDisplay::setFrom(ar_viewer::keyframeMsgConstPtr msg)
 			}
 		}
 		//std::cout << 'B' << blackCount << std::endl;
+		std::cout << maxDepth << std::endl;
 		depthMapValid = true;
 
 	 //   cv::imshow( "Depth map", depth_img );
@@ -227,8 +233,8 @@ void KeyFrameDisplay::drawMesh(float alpha)
 			for(int x=0;x<depthMapWidth-1;x++){
 				x1 = (x - halfWidth) / halfWidth;
 				x2 = (x + 1 - halfWidth) / halfWidth;
-				y1 = (halfHeight - y) / halfHeight;
-				y2 = (halfHeight - y -1) / halfHeight;
+				y1 = (y - halfHeight) / halfHeight;
+				y2 = (y + 1 - halfHeight) / halfHeight;
 				cv::Vec3b colorX1Y1 = inpainted_depth_img.at<cv::Vec3b>(y, x);
 				cv::Vec3b colorX1Y2 = inpainted_depth_img.at<cv::Vec3b>(y+1, x);
 				cv::Vec3b colorX2Y1 = inpainted_depth_img.at<cv::Vec3b>(y, x+1);
@@ -239,16 +245,16 @@ void KeyFrameDisplay::drawMesh(float alpha)
 				glEnable(GL_BLEND);
 
 				glBegin(GL_QUADS);  
-				glNormal3f(0.0f, 0.0f, 1.0f); 
+				glNormal3f(0.0f, 1.0f, 0.0f); 
 
 				glColor4f(colorX1Y1[2] / 255.0f, colorX1Y1[1] / 255.0f, colorX1Y1[0] / 255.0f, alpha);
-				glVertex3f(x1, y1, -1*color2Depth(colorX1Y1));
+				glVertex3f(x1, -color2Depth(colorX1Y1), y1);
 				glColor4f(colorX1Y2[2] / 255.0f, colorX1Y2[1] / 255.0f, colorX1Y2[0] / 255.0f, alpha);
-				glVertex3f(x1, y2, -1*color2Depth(colorX1Y2));
+				glVertex3f(x1, -color2Depth(colorX1Y2), y2);
 				glColor4f(colorX2Y2[2] / 255.0f, colorX2Y2[1] / 255.0f, colorX2Y2[0] / 255.0f, alpha);
-				glVertex3f(x2, y2, -1*color2Depth(colorX2Y2));
+				glVertex3f(x2, -color2Depth(colorX2Y2), y2);
 				glColor4f(colorX2Y1[2] / 255.0f, colorX2Y1[1] / 255.0f, colorX2Y2[0] / 255.0f, alpha);
-				glVertex3f(x2, y1, -1*color2Depth(colorX2Y1));
+				glVertex3f(x2, -color2Depth(colorX2Y1), y1);
 				glEnd();
 
 				glDisable(GL_BLEND);
@@ -256,12 +262,12 @@ void KeyFrameDisplay::drawMesh(float alpha)
 				//wireframe
 				glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 				glBegin(GL_QUADS); 
-				glNormal3f(0.0f, 0.0f, 1.0f); 
+				glNormal3f(0.0f, 1.0f, 0.0f); 
 				glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-				glVertex3f(x1, y1, -1*color2Depth(colorX1Y1));
-				glVertex3f(x1, y2, -1*color2Depth(colorX1Y2));
-				glVertex3f(x2, y2, -1*color2Depth(colorX2Y2));
-				glVertex3f(x2, y1, -1*color2Depth(colorX2Y1));
+				glVertex3f(x1, -color2Depth(colorX1Y1), y1);
+				glVertex3f(x1, -color2Depth(colorX1Y2), y2);
+				glVertex3f(x2, -color2Depth(colorX2Y2), y2);
+				glVertex3f(x2, -color2Depth(colorX2Y1), y1);
 				glEnd();
 				glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 

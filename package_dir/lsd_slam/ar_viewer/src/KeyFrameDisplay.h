@@ -106,6 +106,7 @@ private:
 	int depthMapHeight, depthMapWidth;
 	cv::Mat inpainted_depth_img;
 	bool depthMapValid;
+	float maxDepth;
 };
 
 
