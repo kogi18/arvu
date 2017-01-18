@@ -209,6 +209,32 @@ void ARViewer::drawComplex(){
 
 }
 
+void ARViewer::drawGround(){
+	// assumptions: the ground is a straight plain that goes trough the center of the video
+	// normal points up - 0 1 0
+	// simplify it into a 20x1x20 mesh from z 1 to -1
+	int quadsPerAxis = 20, halfPoint = quadsPerAxis / 2;
+	float x1, x2, z1, z2;
+	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+	glBegin(GL_QUADS);
+		for(int z=0; z<quadsPerAxis-1; z++){
+			for(int x=0;x<quadsPerAxis-1;x++){
+				x1 = float(x - halfPoint) / halfPoint;
+				x2 = float(x + 1 - halfPoint) / halfPoint;
+				z1 = float(z - halfPoint) / halfPoint;
+				z2 = float(z + 1 - halfPoint) / halfPoint;
+				glNormal3f(0.0f, 1.0f, 0.0f); 
+				glColor3f(1.0f, 1.0f, 0.0f);
+				glVertex3f(x1, 0.0f, z1);
+				glVertex3f(x2, 0.0f, z1);
+				glVertex3f(x2, 0.0f, z2);
+				glVertex3f(x1, 0.0f, z2);
+			}
+		}
+	glEnd();
+	glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+}
+
 void ARViewer::draw(){
 
 	glPushMatrix();
@@ -220,12 +246,13 @@ void ARViewer::draw(){
 //	kfd->refreshPC();
 //	kfd->drawPC();
 	kfd->drawMesh(0.75f);
+	//drawGround();
 	glScalef(0.1f, 0.1f, 0.1f);
 
 	/*
 	 * Exercise 1.3 - Replace the box with one or more complex 3D objects
 	 */
-/*
+
 	glTranslatef(CUBE_x, CUBE_y, CUBE_z);
 	drawCube();
 
@@ -288,7 +315,7 @@ void ARViewer::draw(){
 	glTranslatef(CO_x , CO_y, CO_z);
 	glRotatef(CO_Deg_y, 0.0f, 1.0f, 0.0f); // rotation around Y
 	drawComplex();
-*/
+
 }
 
 void ARViewer::init(){

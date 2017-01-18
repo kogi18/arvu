@@ -34,6 +34,7 @@ protected:
 	virtual void drawComplex();
 	virtual void init();
 	virtual void initComplexModel();
+	virtual void drawGround();
 private:
 	void emptyCurrentImg();
 	void renderBackgroundGL();

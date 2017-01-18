@@ -181,20 +181,20 @@ void KeyFrameDisplay::setFrom(ar_viewer::keyframeMsgConstPtr msg)
 	inpaint(scaled_border_depth_img, depth_mask_img, inpainted_border_depth_img, 2, cv::INPAINT_TELEA);
 
 	//remove the border - inpainting fails at left and upper border, so we do it on 1px higher and wider image than remove the first row and column
-	int blackCount = 0;
+	//int blackCount = 0;
 	for(int y=0;y<scaled_depth_img.rows;y++){
 		for(int x=0;x<scaled_depth_img.cols;x++){
 			scaled_depth_img.at<cv::Vec3b>(y, x) =  scaled_border_depth_img.at<cv::Vec3b>(y+1, x+1);
 			cv::Vec3b color = inpainted_border_depth_img.at<cv::Vec3b>(y+1, x+1);
 			inpainted_depth_img.at<cv::Vec3b>(y, x) = color;
-			
+			/*
 			if(color[0] == 0 && color[1] == 0 && color[2] == 0){
 				blackCount++;
 			}
-			
+			*/
 		}
 	}
-	std::cout << 'B' << blackCount << std::endl;
+	//std::cout << 'B' << blackCount << std::endl;
 	depthMapValid = true;
 
 	depth_mask_img.release();
@@ -213,9 +213,6 @@ void KeyFrameDisplay::drawMesh(float alpha)
 	float x1, x2, y1, y2;
 
 	if(depthMapValid){
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable( GL_BLEND );
-		glBegin(GL_QUADS);  
 		for(int y=0;y<depthMapHeight-1;y++){
 			for(int x=0;x<depthMapWidth-1;x++){
 				x1 = (x - halfWidth) / halfWidth;
@@ -227,6 +224,11 @@ void KeyFrameDisplay::drawMesh(float alpha)
 				cv::Vec3b colorX2Y1 = inpainted_depth_img.at<cv::Vec3b>(y, x+1);
 				cv::Vec3b colorX2Y2 = inpainted_depth_img.at<cv::Vec3b>(y+1, x+1);
 
+
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				glEnable( GL_BLEND );
+
+				glBegin(GL_QUADS);  
 				glNormal3f(0.0f, 0.0f, 1.0f); 
 
 				glColor4f(colorX1Y1[2] / 255.0f, colorX1Y1[1] / 255.0f, colorX1Y1[0] / 255.0f, alpha);
@@ -237,10 +239,22 @@ void KeyFrameDisplay::drawMesh(float alpha)
 				glVertex3f(x2, y2, -1*color2Depth(colorX2Y2));
 				glColor4f(colorX2Y1[2] / 255.0f, colorX2Y1[1] / 255.0f, colorX2Y2[0] / 255.0f, alpha);
 				glVertex3f(x2, y1, -1*color2Depth(colorX2Y1));
+				glEnd();
+
+				//wireframe
+				glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+				glBegin(GL_QUADS); 
+				glNormal3f(0.0f, 0.0f, 1.0f); 
+				glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+				glVertex3f(x1, y1, -1*color2Depth(colorX1Y1));
+				glVertex3f(x1, y2, -1*color2Depth(colorX1Y2));
+				glVertex3f(x2, y2, -1*color2Depth(colorX2Y2));
+				glVertex3f(x2, y1, -1*color2Depth(colorX2Y1));
+				glEnd();
+				glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
 			}
 		}
-		glEnd();
 	}
 
 }
